@@ -32,6 +32,10 @@ const UserSchema = new mongoose.Schema(
       public_id: String,
       url: String,
     },
+    about: {
+      type: String,
+      maxLength: 150,
+    },
     resetPasswordCode: String,
     resetPasswordExpire: Date,
   },

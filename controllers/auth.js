@@ -111,7 +111,7 @@ exports.updatePassword = asyncHandler(async (req, res, next) => {
 
 // @desc    Forgot Password
 // @route   POST /api/v1/forgot-password
-// @access  Public
+// @access  Private
 exports.forgotPassword = asyncHandler(async (req, res, next) => {
   const {
     body: { email },
@@ -155,9 +155,9 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
   }
 });
 
-// @desc    Reset password
+// @desc    Update User Info
 // @route   PUT /api/v1/reset-password
-// @access  Public
+// @access  Private
 exports.resetPassword = asyncHandler(async (req, res, next) => {
   // Get hashed token
   // const resetPasswordToken = crypto
@@ -200,6 +200,35 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
   sendTokenResponse(user, 200, res);
 });
 
+// @desc    Reset password
+// @route   PUT /api/v1/reset-user-info
+// @access  Private
+exports.updateUserInfo = asyncHandler(async (req, res, next) => {
+  const {
+    body: { firstName, lastName, email, about },
+    user: { id },
+  } = req;
+
+  const isEmailAlreadyExist = await User.findOne({ _id: { $ne: id }, email });
+
+  if (isEmailAlreadyExist) {
+    return next(
+      new ErrorResponse(
+        `${email} is already exists in Database, please use another email`,
+        400
+      )
+    );
+  }
+
+  const user = await User.findByIdAndUpdate(
+    id,
+    { firstName, lastName, email, about },
+    { new: true, runValidators: true }
+  );
+
+  sendTokenResponse(user, 200, res);
+});
+
 // Get Token from model, create cookie and send response
 const sendTokenResponse = (user, statusCode, res) => {
   // Create token
@@ -229,6 +258,7 @@ const sendTokenResponse = (user, statusCode, res) => {
         firstName: user?.firstName,
         lastName: user?.lastName,
         email: user?.email,
+        about: user?.about,
       },
     });
 };
