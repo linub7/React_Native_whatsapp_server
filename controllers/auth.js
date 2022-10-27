@@ -259,6 +259,7 @@ const sendTokenResponse = (user, statusCode, res) => {
         lastName: user?.lastName,
         email: user?.email,
         about: user?.about,
+        imageUrl: user?.image?.url,
       },
     });
 };
