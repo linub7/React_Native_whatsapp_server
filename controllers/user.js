@@ -68,7 +68,7 @@ exports.searchUser = asyncHandler(async (req, res, next) => {
   const result = await User.find({
     _id: { $ne: user.id },
     firstName: { $regex: `.*${name}.*`, $options: 'i' },
-  }).select('firstName lastName');
+  }).select('firstName lastName about image.url');
 
   return res.status(200).json({
     success: true,
