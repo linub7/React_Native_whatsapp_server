@@ -1,5 +1,5 @@
 const express = require('express');
-const { uploadProfilePhoto } = require('../controllers/user');
+const { uploadProfilePhoto, searchUser } = require('../controllers/user');
 
 const router = express.Router();
 
@@ -12,5 +12,6 @@ router.post(
   uploadImage.single('image'),
   uploadProfilePhoto
 );
+router.get('/users/search', protect, searchUser);
 
 module.exports = router;
