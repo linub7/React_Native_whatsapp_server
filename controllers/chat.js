@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Chat = require('../models/Chat');
+const Message = require('../models/Message');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const cloudinary = require('cloudinary');
@@ -50,7 +51,7 @@ exports.createChat = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Create Chat
+// @desc    Find Chat
 // @route   GET /api/v1/find-chat-with-ids/:selectedUserId
 // @access  Private
 exports.findChat = asyncHandler(async (req, res, next) => {
@@ -58,6 +59,9 @@ exports.findChat = asyncHandler(async (req, res, next) => {
     params: { selectedUserId },
     user: { id },
   } = req;
+
+  // console.log({ selectedUserId });
+  // console.log({ id });
 
   if (!selectedUserId) {
     return next(new ErrorResponse('Selected User id is required', 400));
@@ -67,17 +71,52 @@ exports.findChat = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Please provide a valid user id', 400));
   }
 
-  const users = [selectedUserId, id];
-  console.log(users);
+  const chatUserIds = [selectedUserId, id];
 
-  const existedChat = await Chat.findOne({ users });
+  const existedChat = await Chat.findOne({
+    users: { $all: chatUserIds },
+  }).select({ _id: 1, latestMessage: 1 });
 
   if (!existedChat) {
     return next(new ErrorResponse('Chat not found', 404));
   }
 
+  const messages = await Message.find({ chat: existedChat._id })
+    .populate('sender', 'firstName lastName image.url')
+    .select({ content: 1, sender: 1 });
+
   return res.json({
     success: true,
-    chatId: existedChat._id,
+    existedChat,
+    messages,
+  });
+});
+
+// @desc    Find loggedInUser chats
+// @route   GET /api/v1/find-logged-in-users-chats
+// @access  Private
+exports.findLoggedInUserChats = asyncHandler(async (req, res, next) => {
+  const {
+    user: { id },
+  } = req;
+
+  const chats = await Chat.find({ users: { $elemMatch: { $eq: id } } });
+
+  if (chats?.length < 1) {
+    return res.json({
+      success: true,
+      chats: {},
+    });
+  }
+
+  let chatIds = [];
+
+  for (const chat of chats) {
+    chatIds.push(chat._id);
+  }
+
+  return res.json({
+    success: true,
+    chats: chatIds,
   });
 });
