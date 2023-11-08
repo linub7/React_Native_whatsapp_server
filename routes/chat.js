@@ -1,16 +1,16 @@
 const express = require('express');
-const {
-  createChat,
-  findChat,
-  findLoggedInUserChats,
-} = require('../controllers/chat');
+const trimRequest = require('trim-request');
+const { createOrOpenChat, findChat, getChats } = require('../controllers/chat');
 
 const router = express.Router();
 
 const { protect } = require('../middleware/auth');
 
-router.post('/create-chat', protect, createChat);
-router.get('/find-chat-with-ids/:selectedUserId', protect, findChat);
-router.get('/find-logged-in-users-chats', protect, findLoggedInUserChats);
+router.get('/chats/:selectedUserId', protect, findChat);
+
+router
+  .route('/chats')
+  .get(trimRequest.all, protect, getChats)
+  .post(trimRequest.all, protect, createOrOpenChat);
 
 module.exports = router;

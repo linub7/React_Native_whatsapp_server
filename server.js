@@ -1,8 +1,8 @@
 const { readdirSync } = require('fs');
+const http = require('http');
 const express = require('express');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
-const errorHandler = require('./middleware/error');
 const cookieParser = require('cookie-parser');
 const mongoSanitize = require('express-mongo-sanitize');
 const helmet = require('helmet');
@@ -11,12 +11,13 @@ const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
 const cors = require('cors');
 const colors = require('colors');
-const connectDB = require('./config/db');
+const { Server } = require('socket.io');
 
+const errorHandler = require('./middleware/error');
+const connectDB = require('./config/db');
+const SocketServer = require('./socket-server');
 // Load env vars
 dotenv.config({ path: './config/config.env' });
-
-connectDB();
 
 const app = express();
 
@@ -62,10 +63,26 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 8000;
 
-const server = app.listen(PORT, () => {
+const appServer = http.createServer(app);
+
+connectDB();
+const server = appServer.listen(PORT, () => {
   console.log(
     `Server running in ${process.env.NODE_ENV} mode on port ${PORT}`.yellow.bold
   );
+});
+
+// socket.io
+const io = new Server(server, {
+  pingTimeout: 60000,
+  cors: {
+    origin: '*',
+  },
+});
+
+io.on('connection', (socket) => {
+  console.log('socket io connected successfully!');
+  SocketServer(socket, io);
 });
 
 // Handle unhandled promise rejection

@@ -1,10 +1,10 @@
 const cloudinary = require('../cloud');
 
 exports.uploadImageToCloudinary = async (filePath) => {
-  const { secure_url: url, public_id } = await cloudinary.uploader.upload(
-    filePath
-  );
-  return { url, public_id };
+  const payload = await cloudinary.uploader.upload(filePath, {
+    resource_type: 'auto',
+  });
+  return payload;
 };
 
 exports.destroyImageFromCloudinary = async (public_id) => {

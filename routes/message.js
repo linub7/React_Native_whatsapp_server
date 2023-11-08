@@ -1,10 +1,24 @@
 const express = require('express');
-const { createMessage } = require('../controllers/message');
+const trimRequest = require('trim-request');
+const { isValidObjectId } = require('mongoose');
+const { sendMessage, getMessages } = require('../controllers/message');
+const { protect } = require('../middleware/auth');
+const ErrorResponse = require('../utils/errorResponse');
+const { uploadFile } = require('../middleware/multer');
 
 const router = express.Router();
 
-const { protect } = require('../middleware/auth');
+router.param('id', (req, res, next, val) => {
+  if (!isValidObjectId(val)) {
+    return next(new ErrorResponse('Please provide a valid id', 400));
+  }
+  next();
+});
 
-router.post('/create-message', protect, createMessage);
+router.route('/messages/:id').get(trimRequest.all, protect, getMessages);
+
+router
+  .route('/messages')
+  .post(trimRequest.all, protect, uploadFile.array('files', 4), sendMessage);
 
 module.exports = router;

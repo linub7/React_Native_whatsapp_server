@@ -31,7 +31,8 @@ exports.uploadProfilePhoto = asyncHandler(async (req, res, next) => {
 
   if (existedUser?.image?.public_id) {
     await destroyImageFromCloudinary(existedUser?.image?.public_id);
-    const { url, public_id } = await uploadImageToCloudinary(req.file?.path);
+    const payload = await uploadImageToCloudinary(req.file?.path);
+    const { url, public_id } = payload;
     existedUser.image = { url, public_id };
 
     await existedUser.save();
@@ -41,7 +42,8 @@ exports.uploadProfilePhoto = asyncHandler(async (req, res, next) => {
       data: existedUser,
     });
   } else {
-    const { url, public_id } = await uploadImageToCloudinary(req.file?.path);
+    const payload = await uploadImageToCloudinary(req.file?.path);
+    const { url, public_id } = payload;
     existedUser.image = { url, public_id };
 
     await existedUser.save();

@@ -1,39 +1,91 @@
-const User = require('../models/User');
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
-const cloudinary = require('cloudinary');
-const { v4: uuidv4 } = require('uuid');
 
-// @desc    Create Message
-// @route   POST /api/v1/create-message
-// @access  Private
-exports.createMessage = asyncHandler(async (req, res, next) => {
+const { isValidObjectId } = require('mongoose');
+
+exports.sendMessage = asyncHandler(async (req, res, next) => {
   const {
-    body: { content, chatId },
     user,
+    body: { message, chat },
   } = req;
+  if (!chat)
+    return next(
+      new ErrorResponse('Please provide message or files and chat id', 400)
+    );
 
-  if (!content || !chatId) {
-    return next(new ErrorResponse('content & chatId are required', 400));
+  if (!isValidObjectId(chat))
+    return next(new ErrorResponse('Please provide a valid id', 400));
+
+  const isChatExist = await Chat.findById(chat);
+
+  if (!isChatExist) return next(new ErrorResponse('chat not found!', 404));
+
+  if (!isChatExist.isGroup) {
+    const isMeAllowedToSendMessageToThisChat = await Chat.findOne({
+      _id: chat,
+      users: user._id,
+    });
+    if (!isMeAllowedToSendMessageToThisChat) {
+      return next(
+        new ErrorResponse('You can not send a message to a foreign chat!', 403)
+      );
+    }
   }
 
-  const newMessageBody = {
+  if (!message && req.files?.length < 1)
+    return next(new ErrorResponse('Please provide a message or files!', 400));
+
+  let files = [];
+  if (req.files) {
+    for (const file of req.files) {
+      const payload = await uploadImageToCloudinary(file?.path);
+      files.push(payload);
+    }
+  }
+
+  const newMessage = await Message.create({
     sender: user.id,
-    content,
+    chat: isChatExist._id,
+    message,
+    files: files || [],
+  });
+
+  isChatExist.latestMessage = newMessage._id;
+
+  await isChatExist.save({ validateBeforeSave: false });
+
+  return res.json({
+    status: 'success',
+    data: {
+      data: newMessage,
+    },
+  });
+});
+
+exports.getMessages = asyncHandler(async (req, res, next) => {
+  const {
+    user,
+    params: { id: chatId },
+  } = req;
+
+  const isMeAllowedToGetThisChatMessages = await Chat.findOne({
+    _id: chatId,
+    users: user.id,
+  });
+
+  if (!isMeAllowedToGetThisChatMessages)
+    return next(
+      new ErrorResponse('You can not read this conversation messages!', 403)
+    );
+
+  const conversationMessages = await Message.find({
     chat: chatId,
-  };
+  }).populate({ path: 'sender', select: 'name image' });
 
-  const newMessage = await Message.create(newMessageBody);
-  await newMessage.populate('sender');
-  await newMessage.populate('chat');
-  await newMessage.populate('chat.users');
-
-  await Chat.findByIdAndUpdate(chatId, { latestMessage: newMessage });
-
-  return res.status(201).json({
-    success: true,
-    data: newMessage,
+  return res.json({
+    status: 'success',
+    data: { data: conversationMessages },
   });
 });
