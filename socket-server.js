@@ -28,21 +28,25 @@ module.exports = (socket, io) => {
 
   // send and receive message
   socket.on('send-message', (message) => {
-    const { conversation } = message;
-    if (!conversation.users) return;
-    conversation?.users?.forEach((user) => {
+    console.log('send-message: ', message);
+    const { chat } = message;
+    if (!chat.users) return;
+    chat?.users?.forEach((user) => {
       if (user?._id === message?.sender?._id) return;
       socket.in(user?._id).emit('receive-message', message);
+      console.log('receive-message: ', message);
     });
   });
 
   // typing
   socket.on('typing', (conversation) => {
+    console.log('someone is typing');
     socket.in(conversation).emit('typing');
   });
 
   // stop-typing
   socket.on('stop-typing', (conversation) => {
+    console.log('someone is stopping typing');
     socket.in(conversation).emit('stop-typing');
   });
 
