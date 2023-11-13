@@ -20,6 +20,10 @@ const MessageSchema = new Schema(
         type: Object,
       },
     ],
+    isStared: {
+      type: Boolean,
+      default: false,
+    },
   }, // without toJSON: { virtuals: true }, toObject: { virtuals: true } our virtual field will now show
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
@@ -29,6 +33,15 @@ MessageSchema.pre('save', function (next) {
     path: 'chat',
     select: 'users',
   });
+  next();
+});
+
+MessageSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: 'sender',
+    select: 'firstName lastName image',
+  });
+
   next();
 });
 

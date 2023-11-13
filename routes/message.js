@@ -1,7 +1,11 @@
 const express = require('express');
 const trimRequest = require('trim-request');
 const { isValidObjectId } = require('mongoose');
-const { sendMessage, getMessages } = require('../controllers/message');
+const {
+  sendMessage,
+  getMessages,
+  toggleStarMessage,
+} = require('../controllers/message');
 const { protect } = require('../middleware/auth');
 const ErrorResponse = require('../utils/errorResponse');
 const { uploadFile } = require('../middleware/multer');
@@ -15,7 +19,10 @@ router.param('id', (req, res, next, val) => {
   next();
 });
 
-router.route('/messages/:id').get(trimRequest.all, protect, getMessages);
+router
+  .route('/messages/:id')
+  .get(trimRequest.all, protect, getMessages)
+  .put(trimRequest.all, protect, toggleStarMessage);
 
 router
   .route('/messages')

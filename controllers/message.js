@@ -89,3 +89,41 @@ exports.getMessages = asyncHandler(async (req, res, next) => {
     data: { data: conversationMessages },
   });
 });
+
+exports.toggleStarMessage = asyncHandler(async (req, res, next) => {
+  const {
+    user,
+    body: { chatId },
+    params: { id: messageId },
+  } = req;
+
+  if (!messageId)
+    return next(new ErrorResponse('Please insert a message id', 400));
+
+  if (!chatId || !isValidObjectId(chatId))
+    return next(new ErrorResponse('Please insert a proper chat id', 400));
+
+  const existedChat = await Chat.findOne({ _id: chatId, users: user?._id });
+  if (!existedChat) return next(new ErrorResponse('Chat not found!', 404));
+
+  const existedMessage = await Message.findOne({
+    _id: messageId,
+    chat: existedChat?._id,
+  });
+
+  if (!existedMessage)
+    return next(new ErrorResponse('Message not found!', 404));
+
+  if (existedMessage.isStared) {
+    existedMessage.isStared = false;
+  } else {
+    existedMessage.isStared = true;
+  }
+
+  await existedMessage.save({ validateBeforeSave: false });
+
+  return res.json({
+    status: 'success',
+    data: { data: existedMessage },
+  });
+});
