@@ -24,6 +24,14 @@ const MessageSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    isReply: {
+      type: Boolean,
+      default: false,
+    },
+    replyTo: {
+      type: Schema.Types.ObjectId,
+      ref: 'Message',
+    },
   }, // without toJSON: { virtuals: true }, toObject: { virtuals: true } our virtual field will now show
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );

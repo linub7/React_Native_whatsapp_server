@@ -5,6 +5,7 @@ const {
   sendMessage,
   getMessages,
   toggleStarMessage,
+  sendReplyMessage,
 } = require('../controllers/message');
 const { protect } = require('../middleware/auth');
 const ErrorResponse = require('../utils/errorResponse');
@@ -22,6 +23,12 @@ router.param('id', (req, res, next, val) => {
 router
   .route('/messages/:id')
   .get(trimRequest.all, protect, getMessages)
+  .post(
+    trimRequest.all,
+    protect,
+    uploadFile.array('files', 4),
+    sendReplyMessage
+  )
   .put(trimRequest.all, protect, toggleStarMessage);
 
 router

@@ -82,7 +82,7 @@ exports.createOrOpenChat = asyncHandler(async (req, res, next) => {
 
   isAlreadyExistedChat = await Chat.populate(isAlreadyExistedChat, {
     path: 'latestMessage.sender',
-    select: 'name email picture status',
+    select: 'firstName lastName email picture status',
   });
 
   const chat = isAlreadyExistedChat[0];
@@ -164,7 +164,7 @@ exports.getChats = asyncHandler(async (req, res, next) => {
   const chats = await Chat.find({
     users: { $elemMatch: { $eq: user._id } },
   })
-    .populate('users', 'name image')
+    .populate('users', 'firstName lastName image')
     .populate('latestMessage', 'message sender createdAt')
     .sort('-updatedAt');
 

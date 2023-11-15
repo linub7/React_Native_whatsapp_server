@@ -82,7 +82,9 @@ exports.getMessages = asyncHandler(async (req, res, next) => {
 
   const conversationMessages = await Message.find({
     chat: chatId,
-  }).populate({ path: 'sender', select: 'name image' });
+  })
+    .populate({ path: 'sender', select: 'firstName lastName image' })
+    .populate({ path: 'replyTo', select: 'message' });
 
   return res.json({
     status: 'success',
@@ -125,5 +127,70 @@ exports.toggleStarMessage = asyncHandler(async (req, res, next) => {
   return res.json({
     status: 'success',
     data: { data: existedMessage },
+  });
+});
+
+exports.sendReplyMessage = asyncHandler(async (req, res, next) => {
+  const {
+    user,
+    params: { id: messageId },
+    body: { message, chat },
+  } = req;
+
+  if (!chat || !isValidObjectId(chat))
+    return next(new ErrorResponse('Please provide a valid chat id', 400));
+
+  const isChatExist = await Chat.findById(chat);
+
+  if (!isChatExist) return next(new ErrorResponse('chat not found!', 404));
+
+  if (!isChatExist.isGroup) {
+    const isMeAllowedToSendMessageToThisChat = await Chat.findOne({
+      _id: chat,
+      users: user._id,
+    });
+    if (!isMeAllowedToSendMessageToThisChat) {
+      return next(
+        new ErrorResponse('You can not send a message to a foreign chat!', 403)
+      );
+    }
+  }
+
+  if (!message && req.files?.length < 1)
+    return next(new ErrorResponse('Please provide a message or files!', 400));
+
+  let files = [];
+  if (req.files) {
+    for (const file of req.files) {
+      const payload = await uploadImageToCloudinary(file?.path);
+      files.push(payload);
+    }
+  }
+
+  const repliedMessage = await Message.findById(messageId);
+
+  if (!repliedMessage)
+    return next(new ErrorResponse('Message not found!', 404));
+
+  const newMessage = await Message.create({
+    sender: user.id,
+    chat: isChatExist._id,
+    message,
+    files: files || [],
+    isReply: true,
+    replyTo: repliedMessage?._id,
+  });
+
+  await newMessage.populate({ path: 'replyTo' });
+
+  isChatExist.latestMessage = newMessage._id;
+
+  await isChatExist.save({ validateBeforeSave: false });
+
+  return res.json({
+    status: 'success',
+    data: {
+      data: newMessage,
+    },
   });
 });
