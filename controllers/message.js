@@ -82,9 +82,7 @@ exports.getMessages = asyncHandler(async (req, res, next) => {
 
   const conversationMessages = await Message.find({
     chat: chatId,
-  })
-    .populate({ path: 'sender', select: 'firstName lastName image' })
-    .populate({ path: 'replyTo', select: 'message' });
+  }).populate({ path: 'sender', select: 'firstName lastName image' });
 
   return res.json({
     status: 'success',

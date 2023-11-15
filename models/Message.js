@@ -50,6 +50,10 @@ MessageSchema.pre(/^find/, function (next) {
     select: 'firstName lastName image',
   });
 
+  this.populate({
+    path: 'replyTo',
+  });
+
   next();
 });
 

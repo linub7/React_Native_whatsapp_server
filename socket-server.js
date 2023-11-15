@@ -28,13 +28,11 @@ module.exports = (socket, io) => {
 
   // send and receive message
   socket.on('send-message', (message) => {
-    console.log('send-message: ', message);
     const { chat } = message;
     if (!chat.users) return;
     chat?.users?.forEach((user) => {
       if (user?._id === message?.sender?._id) return;
       socket.in(user?._id).emit('receive-message', message);
-      console.log('receive-message: ', message);
     });
   });
 
