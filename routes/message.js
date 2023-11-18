@@ -9,7 +9,7 @@ const {
 } = require('../controllers/message');
 const { protect } = require('../middleware/auth');
 const ErrorResponse = require('../utils/errorResponse');
-const { uploadFile } = require('../middleware/multer');
+const { uploadFile, uploadImage } = require('../middleware/multer');
 
 const router = express.Router();
 
@@ -23,16 +23,11 @@ router.param('id', (req, res, next, val) => {
 router
   .route('/messages/:id')
   .get(trimRequest.all, protect, getMessages)
-  .post(
-    trimRequest.all,
-    protect,
-    uploadFile.array('files', 4),
-    sendReplyMessage
-  )
+  .post(trimRequest.all, protect, uploadImage.single('files'), sendReplyMessage)
   .put(trimRequest.all, protect, toggleStarMessage);
 
 router
   .route('/messages')
-  .post(trimRequest.all, protect, uploadFile.array('files', 4), sendMessage);
+  .post(trimRequest.all, protect, uploadImage.single('files'), sendMessage);
 
 module.exports = router;

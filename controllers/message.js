@@ -4,6 +4,7 @@ const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 
 const { isValidObjectId } = require('mongoose');
+const { uploadImageToCloudinary } = require('../utils/imageUpload');
 
 exports.sendMessage = asyncHandler(async (req, res, next) => {
   const {
@@ -34,15 +35,13 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
     }
   }
 
-  if (!message && req.files?.length < 1)
+  if (!message && !req.file)
     return next(new ErrorResponse('Please provide a message or files!', 400));
 
   let files = [];
-  if (req.files) {
-    for (const file of req.files) {
-      const payload = await uploadImageToCloudinary(file?.path);
-      files.push(payload);
-    }
+  if (req.file) {
+    const payload = await uploadImageToCloudinary(req?.file?.path);
+    files.push(payload);
   }
 
   const newMessage = await Message.create({
@@ -154,15 +153,13 @@ exports.sendReplyMessage = asyncHandler(async (req, res, next) => {
     }
   }
 
-  if (!message && req.files?.length < 1)
+  if (!message && !req.file)
     return next(new ErrorResponse('Please provide a message or files!', 400));
 
   let files = [];
-  if (req.files) {
-    for (const file of req.files) {
-      const payload = await uploadImageToCloudinary(file?.path);
-      files.push(payload);
-    }
+  if (req.file) {
+    const payload = await uploadImageToCloudinary(req?.file?.path);
+    files.push(payload);
   }
 
   const repliedMessage = await Message.findById(messageId);
