@@ -23,16 +23,27 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
 
   if (!isChatExist) return next(new ErrorResponse('chat not found!', 404));
 
-  if (!isChatExist.isGroup) {
-    const isMeAllowedToSendMessageToThisChat = await Chat.findOne({
-      _id: chat,
-      users: user._id,
-    });
-    if (!isMeAllowedToSendMessageToThisChat) {
-      return next(
-        new ErrorResponse('You can not send a message to a foreign chat!', 403)
-      );
-    }
+  // if (!isChatExist.isGroup) {
+  //   const isMeAllowedToSendMessageToThisChat = await Chat.findOne({
+  //     _id: chat,
+  //     users: user._id,
+  //   });
+  //   if (!isMeAllowedToSendMessageToThisChat) {
+  //     return next(
+  //       new ErrorResponse('You can not send a message to a foreign chat!', 403)
+  //     );
+  //   }
+  // }
+
+  const isMeAllowedToSendMessageToThisChat = await Chat.findOne({
+    _id: chat,
+    users: user._id,
+  });
+
+  if (!isMeAllowedToSendMessageToThisChat) {
+    return next(
+      new ErrorResponse('You can not send a message to a foreign chat!', 403)
+    );
   }
 
   if (!message && !req.file)
@@ -53,12 +64,22 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
 
   isChatExist.latestMessage = newMessage._id;
 
+  const populatedMessage = await Message.findById(newMessage?._id)
+    .populate({
+      path: 'sender',
+      select: 'firstName lastName image',
+    })
+    .populate({
+      path: 'chat',
+      select: 'isGroup',
+    });
+
   await isChatExist.save({ validateBeforeSave: false });
 
   return res.json({
     status: 'success',
     data: {
-      data: newMessage,
+      data: populatedMessage,
     },
   });
 });
@@ -81,7 +102,9 @@ exports.getMessages = asyncHandler(async (req, res, next) => {
 
   const conversationMessages = await Message.find({
     chat: chatId,
-  }).populate({ path: 'sender', select: 'firstName lastName image' });
+  })
+    .populate({ path: 'sender', select: 'firstName lastName image' })
+    .populate({ path: 'chat', select: 'isGroup' });
 
   return res.json({
     status: 'success',
@@ -108,7 +131,9 @@ exports.toggleStarMessage = asyncHandler(async (req, res, next) => {
   const existedMessage = await Message.findOne({
     _id: messageId,
     chat: existedChat?._id,
-  });
+  })
+    .populate({ path: 'sender', select: 'firstName lastName image' })
+    .populate({ path: 'chat', select: 'isGroup' });
 
   if (!existedMessage)
     return next(new ErrorResponse('Message not found!', 404));
@@ -141,16 +166,25 @@ exports.sendReplyMessage = asyncHandler(async (req, res, next) => {
 
   if (!isChatExist) return next(new ErrorResponse('chat not found!', 404));
 
-  if (!isChatExist.isGroup) {
-    const isMeAllowedToSendMessageToThisChat = await Chat.findOne({
-      _id: chat,
-      users: user._id,
-    });
-    if (!isMeAllowedToSendMessageToThisChat) {
-      return next(
-        new ErrorResponse('You can not send a message to a foreign chat!', 403)
-      );
-    }
+  // if (!isChatExist.isGroup) {
+  //   const isMeAllowedToSendMessageToThisChat = await Chat.findOne({
+  //     _id: chat,
+  //     users: user._id,
+  //   });
+  //   if (!isMeAllowedToSendMessageToThisChat) {
+  //     return next(
+  //       new ErrorResponse('You can not send a message to a foreign chat!', 403)
+  //     );
+  //   }
+  // }
+  const isMeAllowedToSendMessageToThisChat = await Chat.findOne({
+    _id: chat,
+    users: user._id,
+  });
+  if (!isMeAllowedToSendMessageToThisChat) {
+    return next(
+      new ErrorResponse('You can not send a message to a foreign chat!', 403)
+    );
   }
 
   if (!message && !req.file)
@@ -176,16 +210,27 @@ exports.sendReplyMessage = asyncHandler(async (req, res, next) => {
     replyTo: repliedMessage?._id,
   });
 
-  await newMessage.populate({ path: 'replyTo' });
-
   isChatExist.latestMessage = newMessage._id;
+
+  const populatedMessage = await Message.findById(newMessage?._id)
+    .populate({
+      path: 'replyTo',
+    })
+    .populate({
+      path: 'sender',
+      select: 'firstName lastName image',
+    })
+    .populate({
+      path: 'chat',
+      select: 'isGroup',
+    });
 
   await isChatExist.save({ validateBeforeSave: false });
 
   return res.json({
     status: 'success',
     data: {
-      data: newMessage,
+      data: populatedMessage,
     },
   });
 });

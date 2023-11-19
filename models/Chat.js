@@ -3,6 +3,15 @@ const Schema = mongoose.Schema;
 
 const ChatSchema = new Schema(
   {
+    name: {
+      type: String,
+      trim: true,
+    },
+    picture: {
+      type: Object,
+      url: String,
+      public_id: String,
+    },
     isGroup: {
       type: Boolean,
       required: true,
@@ -31,10 +40,10 @@ ChatSchema.pre(/^find/, function (next) {
     path: 'users',
     select: 'firstName lastName image',
   });
-  // this.populate({
-  //   path: 'admin',
-  //   select: 'name email status picture',
-  // });
+  this.populate({
+    path: 'admin',
+    select: 'firstName lastName image',
+  });
   // this.populate({
   //   path: 'latestMessage',
   //   select: 'message',

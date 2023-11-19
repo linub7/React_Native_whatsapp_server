@@ -12,7 +12,7 @@ const { isValidObjectId } = mongoose;
 exports.createOrOpenChat = asyncHandler(async (req, res, next) => {
   const {
     user,
-    body: { receiverId },
+    body: { receiverId, isGroup },
   } = req;
   const senderId = user.id;
 
@@ -27,54 +27,78 @@ exports.createOrOpenChat = asyncHandler(async (req, res, next) => {
       new ErrorResponse('You can not create a conversation with yourself!', 400)
     );
 
-  let isAlreadyExistedChat = await Chat.find({
-    isGroup: false,
-    // in users fields -> exist senderId AND($and) receiverId
-    $and: [
-      { users: { $elemMatch: { $eq: senderId } } },
-      { users: { $elemMatch: { $eq: receiverId } } },
-    ],
-  });
-
-  if (!isAlreadyExistedChat)
-    return next(new ErrorResponse('OOPS! something went wrong!', 400));
-
-  isAlreadyExistedChat = await Chat.populate(isAlreadyExistedChat, {
-    path: 'latestMessage.sender',
-    select: 'firstName lastName email picture status',
-  });
-
-  const chat = isAlreadyExistedChat[0];
-
-  if (!chat) {
-    const receiver = await User.findById(receiverId);
-    if (!receiver) return next(new ErrorResponse('User not found!', 404));
-
-    const newChat = await Chat.create({
+  if (!isGroup) {
+    let isAlreadyExistedChat = await Chat.find({
       isGroup: false,
-      users: [senderId, receiver._id],
+      // in users fields -> exist senderId AND($and) receiverId
+      $and: [
+        { users: { $elemMatch: { $eq: senderId } } },
+        { users: { $elemMatch: { $eq: receiverId } } },
+      ],
     });
-    if (!newChat)
+
+    if (!isAlreadyExistedChat)
       return next(new ErrorResponse('OOPS! something went wrong!', 400));
 
-    const populatedNewChat = await Chat.findOne({
-      _id: newChat._id,
-    })
-      .populate('users', 'firstName lastName image')
-      .populate('latestMessage', 'message files sender createdAt');
+    isAlreadyExistedChat = await Chat.populate(isAlreadyExistedChat, {
+      path: 'latestMessage.sender',
+      select: 'firstName lastName email picture status',
+    });
+
+    const chat = isAlreadyExistedChat[0];
+
+    if (!chat) {
+      const receiver = await User.findById(receiverId);
+      if (!receiver) return next(new ErrorResponse('User not found!', 404));
+
+      const newChat = await Chat.create({
+        isGroup: false,
+        users: [senderId, receiver._id],
+      });
+      if (!newChat)
+        return next(new ErrorResponse('OOPS! something went wrong!', 400));
+
+      const populatedNewChat = await Chat.findOne({
+        _id: newChat._id,
+      })
+        .populate('users', 'firstName lastName image')
+        .populate('latestMessage', 'message files sender createdAt');
+
+      return res.json({
+        status: 'success',
+        data: { data: populatedNewChat },
+      });
+    }
 
     return res.json({
       status: 'success',
-      data: { data: populatedNewChat },
+      data: {
+        data: chat,
+      },
+    });
+  } else {
+    // it's a group chat
+    let existedGroupChat = await Chat.find({
+      _id: receiverId,
+      isGroup,
+      users: user?._id,
+    });
+
+    if (!existedGroupChat)
+      return next(new ErrorResponse('OOPS! something went wrong!', 400));
+
+    existedGroupChat = await Chat.populate(existedGroupChat, {
+      path: 'latestMessage.sender',
+      select: 'firstName lastName image',
+    });
+
+    const chat = existedGroupChat[0];
+
+    return res.json({
+      status: 'success',
+      data: { data: chat },
     });
   }
-
-  return res.json({
-    status: 'success',
-    data: {
-      data: chat,
-    },
-  });
 });
 
 exports.findChat = asyncHandler(async (req, res, next) => {
@@ -127,5 +151,47 @@ exports.getChats = asyncHandler(async (req, res, next) => {
   return res.json({
     status: 'success',
     data: { data: chats },
+  });
+});
+
+exports.createGroupChat = asyncHandler(async (req, res, next) => {
+  const {
+    user,
+    body: { name, users },
+  } = req;
+  console.log({ users });
+  if (!name || !users)
+    return next(new ErrorResponse('Please fill all fields', 400));
+
+  for (const el of users) {
+    if (!isValidObjectId(el))
+      return next(new ErrorResponse('Please enter a valid users', 400));
+  }
+
+  if (users?.length < 1)
+    return next(new ErrorResponse('Please enter at least one user', 400));
+
+  // add current user to users
+  users?.push(user?._id);
+
+  const newChat = await Chat.create({
+    name,
+    admin: user?._id,
+    isGroup: true,
+    users,
+  });
+
+  if (!newChat)
+    return next(new ErrorResponse('OOPS! something went wrong', 400));
+
+  const populatedNewChat = await Chat.findById(newChat?._id)
+    .populate('users', 'firstName lastName image')
+    .populate('latestMessage', 'message sender createdAt');
+
+  console.log({ populatedNewChat });
+
+  return res.json({
+    status: 'success',
+    data: { data: populatedNewChat },
   });
 });
