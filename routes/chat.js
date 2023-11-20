@@ -5,11 +5,26 @@ const {
   findCommonChats,
   getChats,
   createGroupChat,
+  updateChat,
 } = require('../controllers/chat');
 
 const router = express.Router();
 
 const { protect } = require('../middleware/auth');
+const { isValidObjectId } = require('mongoose');
+const ErrorResponse = require('../utils/errorResponse');
+const { uploadImage } = require('../middleware/multer');
+
+router.param('id', (req, res, next, val) => {
+  if (!isValidObjectId(val)) {
+    return next(new ErrorResponse('Please provide a valid id', 400));
+  }
+  next();
+});
+
+router
+  .route('/chats/:id')
+  .put(trimRequest.all, protect, uploadImage.single('picture'), updateChat);
 
 router
   .route('/chats')

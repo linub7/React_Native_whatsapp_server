@@ -6,6 +6,10 @@ const asyncHandler = require('../middleware/async');
 const cloudinary = require('cloudinary');
 const { v4: uuidv4 } = require('uuid');
 const mongoose = require('mongoose');
+const {
+  destroyImageFromCloudinary,
+  uploadImageToCloudinary,
+} = require('../utils/imageUpload');
 
 const { isValidObjectId } = mongoose;
 
@@ -187,5 +191,51 @@ exports.createGroupChat = asyncHandler(async (req, res, next) => {
   return res.json({
     status: 'success',
     data: { data: populatedNewChat },
+  });
+});
+
+exports.updateChat = asyncHandler(async (req, res, next) => {
+  const {
+    user,
+    params: { id },
+    body: { name },
+  } = req;
+
+  console.log({ name });
+  if (!id) return next(new ErrorResponse('Please add chat id', 400));
+  if (!req.file && !name)
+    return next(new ErrorResponse('Please add picture or name', 400));
+
+  const existedChat = await Chat.findById(id)
+    .populate('users', 'firstName lastName image about')
+    .populate('latestMessage', 'message files sender createdAt');
+
+  if (!existedChat) return next(new ErrorResponse('Chat not found', 404));
+
+  if (existedChat?.admin?._id?.toString() !== user?.id?.toString())
+    return next(new ErrorResponse('Only Admin can change chat picture', 403));
+
+  if (name) {
+    existedChat.name = name;
+  }
+
+  if (req?.file) {
+    if (existedChat?.picture?.public_id) {
+      await destroyImageFromCloudinary(existedChat?.picture?.public_id);
+      const payload = await uploadImageToCloudinary(req.file?.path);
+      const { url, public_id } = payload;
+      existedChat.picture = { url, public_id };
+    } else {
+      const payload = await uploadImageToCloudinary(req.file?.path);
+      const { url, public_id } = payload;
+      existedChat.picture = { url, public_id };
+    }
+  }
+
+  await existedChat.save({ validateBeforeSave: false });
+
+  return res.json({
+    success: true,
+    data: { data: existedChat },
   });
 });
