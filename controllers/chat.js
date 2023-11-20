@@ -101,41 +101,35 @@ exports.createOrOpenChat = asyncHandler(async (req, res, next) => {
   }
 });
 
-exports.findChat = asyncHandler(async (req, res, next) => {
+exports.findCommonChats = asyncHandler(async (req, res, next) => {
   const {
-    params: { selectedUserId },
     user: { id },
+    query: { otherUser },
   } = req;
 
-  // console.log({ selectedUserId });
-  // console.log({ id });
+  if (!otherUser) return next(new ErrorResponse('Please enter a user', 400));
+  if (!isValidObjectId(otherUser))
+    return next(new ErrorResponse('Please enter a valid user', 400));
 
-  if (!selectedUserId) {
-    return next(new ErrorResponse('Selected User id is required', 400));
-  }
+  if (otherUser?.toString() === id?.toString())
+    return next(new ErrorResponse('Please select another user', 400));
 
-  if (!isValidObjectId(selectedUserId)) {
-    return next(new ErrorResponse('Please provide a valid user id', 400));
-  }
+  const existedUser = await User.findById(otherUser);
+  if (!existedUser) return next(new ErrorResponse('User not found', 404));
 
-  const chatUserIds = [selectedUserId, id];
-
-  const existedChat = await Chat.findOne({
-    users: { $all: chatUserIds },
-  }).select({ _id: 1, latestMessage: 1 });
-
-  if (!existedChat) {
-    return next(new ErrorResponse('Chat not found', 404));
-  }
-
-  const messages = await Message.find({ chat: existedChat._id })
-    .populate('sender', 'firstName lastName image.url')
-    .select({ content: 1, sender: 1 });
+  const commonChats = await Chat.find({
+    $and: [
+      { users: { $elemMatch: { $eq: id } } },
+      { users: { $elemMatch: { $eq: existedUser._id } } },
+    ],
+  })
+    .populate('users', 'firstName lastName image about')
+    .populate('latestMessage', 'message files sender createdAt')
+    .sort('-updatedAt');
 
   return res.json({
-    success: true,
-    existedChat,
-    messages,
+    status: 'success',
+    data: { data: commonChats },
   });
 });
 
@@ -144,7 +138,7 @@ exports.getChats = asyncHandler(async (req, res, next) => {
   const chats = await Chat.find({
     users: { $elemMatch: { $eq: user._id } },
   })
-    .populate('users', 'firstName lastName image')
+    .populate('users', 'firstName lastName image about')
     .populate('latestMessage', 'message files sender createdAt')
     .sort('-updatedAt');
 
