@@ -3,8 +3,6 @@ const Chat = require('../models/Chat');
 const Message = require('../models/Message');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
-const cloudinary = require('cloudinary');
-const { v4: uuidv4 } = require('uuid');
 const mongoose = require('mongoose');
 const {
   destroyImageFromCloudinary,
@@ -157,7 +155,7 @@ exports.createGroupChat = asyncHandler(async (req, res, next) => {
     user,
     body: { name, users },
   } = req;
-  console.log({ users });
+
   if (!name || !users)
     return next(new ErrorResponse('Please fill all fields', 400));
 
@@ -186,8 +184,6 @@ exports.createGroupChat = asyncHandler(async (req, res, next) => {
     .populate('users', 'firstName lastName image')
     .populate('latestMessage', 'message sender createdAt');
 
-  console.log({ populatedNewChat });
-
   return res.json({
     status: 'success',
     data: { data: populatedNewChat },
@@ -201,7 +197,6 @@ exports.updateChat = asyncHandler(async (req, res, next) => {
     body: { name },
   } = req;
 
-  console.log({ name });
   if (!id) return next(new ErrorResponse('Please add chat id', 400));
   if (!req.file && !name)
     return next(new ErrorResponse('Please add picture or name', 400));
@@ -237,5 +232,104 @@ exports.updateChat = asyncHandler(async (req, res, next) => {
   return res.json({
     success: true,
     data: { data: existedChat },
+  });
+});
+
+exports.removeUserFromGroupChat = asyncHandler(async (req, res, next) => {
+  const {
+    user,
+    body: { removedUser },
+    params: { id },
+  } = req;
+
+  if (!id) return next(new ErrorResponse('Please enter a chat id', 400));
+  if (!removedUser)
+    return next(new ErrorResponse('Please enter removed user id', 400));
+
+  const existedUser = await User.findById(removedUser);
+
+  if (!existedUser) return next(new ErrorResponse('User not found!', 404));
+
+  if (user?.id?.toString() === existedUser?._id?.toString())
+    return next(new ErrorResponse('Admin can not removed itself!', 404));
+
+  const existedChat = await Chat.findOne({
+    _id: id,
+    $and: [
+      { users: { $elemMatch: { $eq: user?.id } } },
+      { users: { $elemMatch: { $eq: existedUser?._id } } },
+    ],
+    admin: user.id,
+  })
+    .populate('users', 'firstName lastName image about')
+    .populate('latestMessage', 'message files sender createdAt');
+
+  if (!existedChat) return next(new ErrorResponse('Chat not found', 404));
+
+  let newUsers = [...existedChat?.users];
+
+  newUsers = newUsers?.filter(
+    (item) => item?._id?.toString() !== existedUser?._id?.toString()
+  );
+
+  existedChat.users = newUsers;
+
+  const chatMessages = await Message.find({
+    chat: existedChat._id.toString(),
+    sender: { $ne: existedUser?._id },
+  });
+
+  const removeUserMessages = await Message.find({
+    sender: existedUser._id,
+    chat: existedChat._id,
+  });
+
+  for (const message of removeUserMessages) {
+    if (
+      existedChat.latestMessage?._id?.toString() === message?._id?.toString()
+    ) {
+      const newLatestMessage = chatMessages[chatMessages.length - 1];
+      existedChat.latestMessage = newLatestMessage._id;
+    }
+    await message.remove();
+  }
+
+  await existedChat.save({ validateBeforeSave: false });
+
+  return res.json({
+    status: 'success',
+    data: { data: existedChat },
+  });
+});
+
+exports.deleteChat = asyncHandler(async (req, res, next) => {
+  const {
+    user,
+    params: { id },
+  } = req;
+
+  if (!id) return next(new ErrorResponse('Please enter chat', 400));
+
+  const existedChat = await Chat.findOne({ id, admin: user.id.toString() });
+
+  if (!existedChat) return next(new ErrorResponse('Chat not found', 404));
+
+  if (existedChat?.picture) {
+    await destroyImageFromCloudinary(existedChat.picture.public_id);
+  }
+
+  await existedChat.remove();
+
+  const messages = await Message.find({
+    chat: existedChat._id,
+  });
+
+  for (const message of messages) {
+    await message.remove();
+  }
+
+  return res.json({
+    status: 'success',
+    data: { data: 'chat and its messages deleted successfully.' },
   });
 });
