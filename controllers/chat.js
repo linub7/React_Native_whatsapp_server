@@ -289,7 +289,9 @@ exports.removeUserFromGroupChat = asyncHandler(async (req, res, next) => {
       existedChat.latestMessage?._id?.toString() === message?._id?.toString()
     ) {
       const newLatestMessage = chatMessages[chatMessages.length - 1];
-      existedChat.latestMessage = newLatestMessage._id;
+      existedChat.latestMessage = newLatestMessage
+        ? newLatestMessage._id
+        : null;
     }
     await message.remove();
   }
@@ -298,7 +300,7 @@ exports.removeUserFromGroupChat = asyncHandler(async (req, res, next) => {
 
   return res.json({
     status: 'success',
-    data: { data: existedChat },
+    data: { data: { chat: existedChat, messages: chatMessages } },
   });
 });
 
