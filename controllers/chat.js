@@ -1,9 +1,10 @@
+const mongoose = require('mongoose');
+
 const User = require('../models/User');
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
-const mongoose = require('mongoose');
 const {
   destroyImageFromCloudinary,
   uploadImageToCloudinary,
@@ -333,5 +334,63 @@ exports.deleteChat = asyncHandler(async (req, res, next) => {
   return res.json({
     status: 'success',
     data: { data: 'chat and its messages deleted successfully.' },
+  });
+});
+
+exports.leaveUserFromGroupChat = asyncHandler(async (req, res, next) => {
+  const {
+    user,
+    params: { id },
+  } = req;
+
+  if (!id) return next(new ErrorResponse('Please enter chat', 400));
+
+  const updatedChat = await Chat.findOneAndUpdate(
+    { _id: id, users: user._id, isGroup: true, admin: { $ne: user?._id } },
+    {
+      $pull: {
+        users: user._id,
+      },
+    },
+    { new: true, runValidators: true }
+  )
+    .populate('users', 'firstName lastName image about')
+    .populate('latestMessage', 'message files sender createdAt');
+
+  if (!updatedChat)
+    return next(
+      new ErrorResponse(
+        'Chat not found!(Admin users can not leave group, Admin only can delete chat)',
+        404
+      )
+    );
+
+  const chatMessages = await Message.find({
+    chat: updatedChat._id.toString(),
+    sender: { $ne: user?._id },
+  });
+
+  const removeUserMessages = await Message.find({
+    sender: user._id,
+    chat: updatedChat._id,
+  });
+
+  for (const message of removeUserMessages) {
+    if (
+      updatedChat.latestMessage?._id?.toString() === message?._id?.toString()
+    ) {
+      const newLatestMessage = chatMessages[chatMessages.length - 1];
+      updatedChat.latestMessage = newLatestMessage
+        ? newLatestMessage._id
+        : null;
+    }
+    await message.remove();
+  }
+
+  await updatedChat.save({ validateBeforeSave: false });
+
+  return res.json({
+    status: 'success',
+    data: { data: { chat: updatedChat, messages: chatMessages } },
   });
 });
