@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
+const InfoMessage = require('../models/InfoMessage');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const {
@@ -313,6 +314,11 @@ exports.removeUserFromGroupChat = asyncHandler(async (req, res, next) => {
         ? newLatestMessage._id
         : null;
     }
+    if (message?.files.length > 0) {
+      for (const item of message?.files) {
+        await destroyImageFromCloudinary(item?.public_id);
+      }
+    }
     await message.remove();
   }
 
@@ -332,27 +338,44 @@ exports.deleteChat = asyncHandler(async (req, res, next) => {
 
   if (!id) return next(new ErrorResponse('Please enter chat', 400));
 
-  const existedChat = await Chat.findOne({ id, admin: user.id.toString() });
+  const existedChat = await Chat.findOne({
+    _id: id,
+    admin: user.id.toString(),
+  });
 
   if (!existedChat) return next(new ErrorResponse('Chat not found', 404));
 
   if (existedChat?.picture) {
-    await destroyImageFromCloudinary(existedChat.picture.public_id);
+    await destroyImageFromCloudinary(existedChat?.picture?.public_id);
   }
 
   await existedChat.remove();
+
+  await InfoMessage.deleteMany({ chat: existedChat._id });
 
   const messages = await Message.find({
     chat: existedChat._id,
   });
 
   for (const message of messages) {
+    if (message?.files.length > 0) {
+      for (const item of message?.files) {
+        await destroyImageFromCloudinary(item?.public_id);
+      }
+    }
     await message.remove();
   }
 
+  const remainChats = await Chat.find({
+    _id: { $ne: existedChat?._id },
+  })
+    .populate('users', 'firstName lastName image about')
+    .populate('latestMessage', 'message files sender createdAt')
+    .sort('-updatedAt');
+
   return res.json({
     status: 'success',
-    data: { data: 'chat and its messages deleted successfully.' },
+    data: { data: remainChats },
   });
 });
 
@@ -409,6 +432,11 @@ exports.leaveUserFromGroupChat = asyncHandler(async (req, res, next) => {
       updatedChat.latestMessage = newLatestMessage
         ? newLatestMessage._id
         : null;
+    }
+    if (message?.files.length > 0) {
+      for (const item of message?.files) {
+        await destroyImageFromCloudinary(item?.public_id);
+      }
     }
     await message.remove();
   }

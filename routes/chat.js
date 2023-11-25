@@ -26,6 +26,9 @@ router.param('id', (req, res, next, val) => {
   next();
 });
 
+router.route('/chats/group').post(trimRequest.all, protect, createGroupChat);
+router.route('/chats/common').get(trimRequest.all, protect, findCommonChats);
+
 router
   .route('/chats/:id')
   .get(trimRequest.all, protect, getChat)
@@ -44,8 +47,5 @@ router
   .route('/chats')
   .get(trimRequest.all, protect, getChats)
   .post(trimRequest.all, protect, createOrOpenChat);
-
-router.route('/chats/group').post(trimRequest.all, protect, createGroupChat);
-router.route('/chats/common').get(trimRequest.all, protect, findCommonChats);
 
 module.exports = router;
