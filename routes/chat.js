@@ -9,6 +9,7 @@ const {
   removeUserFromGroupChat,
   deleteChat,
   leaveUserFromGroupChat,
+  getChat,
 } = require('../controllers/chat');
 
 const router = express.Router();
@@ -27,6 +28,7 @@ router.param('id', (req, res, next, val) => {
 
 router
   .route('/chats/:id')
+  .get(trimRequest.all, protect, getChat)
   .put(trimRequest.all, protect, uploadImage.single('picture'), updateChat)
   .delete(trimRequest.all, protect, deleteChat);
 

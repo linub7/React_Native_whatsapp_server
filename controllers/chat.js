@@ -151,6 +151,25 @@ exports.getChats = asyncHandler(async (req, res, next) => {
   });
 });
 
+exports.getChat = asyncHandler(async (req, res, next) => {
+  const {
+    user,
+    params: { id },
+  } = req;
+  const chat = await Chat.findOne({
+    _id: id,
+    users: { $elemMatch: { $eq: user._id } },
+  })
+    .populate('users', 'firstName lastName image about')
+    .populate('latestMessage', 'message files sender createdAt')
+    .sort('-updatedAt');
+
+  return res.json({
+    status: 'success',
+    data: { data: chat },
+  });
+});
+
 exports.createGroupChat = asyncHandler(async (req, res, next) => {
   const {
     user,
@@ -365,6 +384,13 @@ exports.leaveUserFromGroupChat = asyncHandler(async (req, res, next) => {
       )
     );
 
+  const chats = await Chat.find({
+    users: { $elemMatch: { $eq: user._id } },
+  })
+    .populate('users', 'firstName lastName image about')
+    .populate('latestMessage', 'message files sender createdAt')
+    .sort('-updatedAt');
+
   const chatMessages = await Message.find({
     chat: updatedChat._id.toString(),
     sender: { $ne: user?._id },
@@ -391,6 +417,6 @@ exports.leaveUserFromGroupChat = asyncHandler(async (req, res, next) => {
 
   return res.json({
     status: 'success',
-    data: { data: { chat: updatedChat, messages: chatMessages } },
+    data: { data: chats },
   });
 });
