@@ -10,6 +10,7 @@ const {
   deleteChat,
   leaveUserFromGroupChat,
   getChat,
+  addUserToGroupChat,
 } = require('../controllers/chat');
 
 const router = express.Router();
@@ -37,6 +38,7 @@ router
 
 router
   .route('/chats/users/:id')
+  .post(trimRequest.all, protect, addUserToGroupChat)
   .put(trimRequest.all, protect, removeUserFromGroupChat);
 
 router

@@ -448,3 +448,48 @@ exports.leaveUserFromGroupChat = asyncHandler(async (req, res, next) => {
     data: { data: chats },
   });
 });
+
+exports.addUserToGroupChat = asyncHandler(async (req, res, next) => {
+  const {
+    user,
+    params: { id },
+    body: { userIds },
+  } = req;
+
+  if (!id || !userIds || userIds?.length < 1)
+    return next(new ErrorResponse('Please enter chat and user ids', 400));
+
+  let tmpUserArray = [];
+  for (const el of userIds) {
+    if (isValidObjectId(el)) {
+      const existedUser = await User.findById(el);
+      if (!existedUser) {
+        tmpUserArray = tmpUserArray?.filter(
+          (item) => item !== existedUser?._id
+        );
+      } else {
+        tmpUserArray.push(existedUser?._id);
+      }
+    }
+  }
+
+  console.log({ tmpUserArray });
+
+  if (tmpUserArray?.length < 1)
+    return next(new ErrorResponse('Please Add at least one valid user', 400));
+
+  const updatedChat = await Chat.findOneAndUpdate(
+    { _id: id, admin: user._id, isGroup: true },
+    {
+      $addToSet: { users: tmpUserArray },
+    },
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedChat) return next(new ErrorResponse('Chat not found!', 404));
+
+  return res.json({
+    status: 'success',
+    data: { data: updatedChat },
+  });
+});
