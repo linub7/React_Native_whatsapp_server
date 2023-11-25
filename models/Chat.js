@@ -52,4 +52,11 @@ ChatSchema.pre(/^find/, function (next) {
   next();
 });
 
+// to prevent growing chat model because of info-message, using virtual
+ChatSchema.virtual('infoMessages', {
+  ref: 'InfoMessage',
+  foreignField: 'chat',
+  localField: '_id',
+});
+
 module.exports = mongoose.model('Chat', ChatSchema);

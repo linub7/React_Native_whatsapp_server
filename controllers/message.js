@@ -1,9 +1,9 @@
+const { isValidObjectId } = require('mongoose');
+
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
-
-const { isValidObjectId } = require('mongoose');
 const { uploadImageToCloudinary } = require('../utils/imageUpload');
 
 exports.sendMessage = asyncHandler(async (req, res, next) => {
