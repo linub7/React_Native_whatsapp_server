@@ -484,12 +484,38 @@ exports.addUserToGroupChat = asyncHandler(async (req, res, next) => {
       $addToSet: { users: tmpUserArray },
     },
     { new: true, runValidators: true }
-  );
+  )
+    .populate('users', 'firstName lastName image about')
+    .populate('latestMessage', 'message files sender createdAt');
 
   if (!updatedChat) return next(new ErrorResponse('Chat not found!', 404));
 
   return res.json({
     status: 'success',
     data: { data: updatedChat },
+  });
+});
+
+exports.getChatStarredMessages = asyncHandler(async (req, res, next) => {
+  const {
+    user,
+    params: { id },
+  } = req;
+
+  if (!id) return next(new ErrorResponse('Please enter a chat', 400));
+
+  const existedChat = await Chat.findOne({ _id: id, users: user?._id });
+  if (!existedChat) return next(new ErrorResponse('Chat not found', 404));
+
+  const starredMessages = await Message.find({
+    chat: existedChat?._id,
+    isStared: true,
+  })
+    .populate({ path: 'sender', select: 'firstName lastName image' })
+    .populate({ path: 'chat', select: 'isGroup' });
+
+  return res.json({
+    status: 'success',
+    data: { data: starredMessages },
   });
 });

@@ -11,6 +11,7 @@ const {
   leaveUserFromGroupChat,
   getChat,
   addUserToGroupChat,
+  getChatStarredMessages,
 } = require('../controllers/chat');
 
 const router = express.Router();
@@ -44,6 +45,10 @@ router
 router
   .route('/chats/leave/:id')
   .put(trimRequest.all, protect, leaveUserFromGroupChat);
+
+router
+  .route('/chats/starred-messages/:id')
+  .get(trimRequest.all, protect, getChatStarredMessages);
 
 router
   .route('/chats')
