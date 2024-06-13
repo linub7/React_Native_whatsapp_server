@@ -66,7 +66,6 @@ exports.searchUser = asyncHandler(async (req, res, next) => {
 
   if (!name.trim()) return next(new ErrorResponse('Invalid Request', 400));
 
-  // const result = await Actor.find({ $text: { $search: `"${name}"` } }); // `"${name}"` : extract only query string
   const result = await User.find({
     _id: { $ne: user.id },
     firstName: { $regex: `.*${name}.*`, $options: 'i' },
